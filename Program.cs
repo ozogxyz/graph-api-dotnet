@@ -21,35 +21,35 @@ while (choice != 0)
 
     try
     {
-        choice = int.Parse(Console.ReadLine() ?? string.Empty);
+	choice = int.Parse(Console.ReadLine() ?? string.Empty);
     }
     catch (System.FormatException)
     {
-        // Set to invalid value
-        choice = -1;
+	// Set to invalid value
+	choice = -1;
     }
 
     switch (choice)
     {
-        case 0:
-            // Exit the program
-            Console.WriteLine("Goodbye...");
-            break;
-        case 1:
-            // Display access token
-            await DisplayAccessTokenAsync();
-            break;
-        case 2:
-            // List users
-            await ListUsersAsync();
-            break;
-        case 3:
-            // Run any Graph code
-            await MakeGraphCallAsync();
-            break;
-        default:
-            Console.WriteLine("Invalid choice! Please try again.");
-            break;
+	case 0:
+	    // Exit the program
+	    Console.WriteLine("Goodbye...");
+	    break;
+	case 1:
+	    // Display access token
+	    await DisplayAccessTokenAsync();
+	    break;
+	case 2:
+	    // List users
+	    await ListUsersAsync();
+	    break;
+	case 3:
+	    // Run any Graph code
+	    await MakeGraphCallAsync();
+	    break;
+	default:
+	    Console.WriteLine("Invalid choice! Please try again.");
+	    break;
     }
 }
 // </ProgramSnippet>
@@ -66,12 +66,12 @@ async Task DisplayAccessTokenAsync()
 {
     try
     {
-        var appOnlyToken = await GraphHelper.GetAppOnlyTokenAsync();
-        Console.WriteLine($"App-only token: {appOnlyToken}");
+	var appOnlyToken = await GraphHelper.GetAppOnlyTokenAsync();
+	Console.WriteLine($"App-only token: {appOnlyToken}");
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"Error getting app-only access token: {ex.Message}");
+	Console.WriteLine($"Error getting app-only access token: {ex.Message}");
     }
 }
 // </DisplayAccessTokenSnippet>
@@ -92,9 +92,9 @@ async Task ListUsersAsync()
 
 	foreach (var user in userPage.Value)
 	{
-            Console.WriteLine($"User: {user.DisplayName ?? "NO NAME"}");
-            Console.WriteLine($"  ID: {user.Id}");
-            Console.WriteLine($"  Email: {user.Mail ?? "NO EMAIL"}");
+	    Console.WriteLine($"User: {user.DisplayName ?? "NO NAME"}");
+	    Console.WriteLine($"  ID: {user.Id}");
+	    Console.WriteLine($"  Email: {user.Mail ?? "NO EMAIL"}");
 	}
     }
 	catch (Exception ex)

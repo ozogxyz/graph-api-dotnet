@@ -5,6 +5,7 @@ using Azure.Core;
 using Azure.Identity;
 using Microsoft.Graph;
 using Microsoft.Graph.Models;
+using Microsoft.Graph.DeviceManagement.DeviceConfigurations;
 
 class GraphHelper
 {
@@ -51,6 +52,56 @@ class GraphHelper
 	});
     }
 
-    #pragma warning disable CS1998
-    public static async Task MakeGraphCallAsync() {}
+    public static Task<DeviceCollectionResponse?> GetDeviceAsync()
+    {
+	_ = _appClient ??
+	    throw new NullReferenceException("Failed to initialize Graph");
+
+	// return _appClient.Devices.GetAsync((config) =>
+	// {
+	//     config.QueryParameters.Select = ["displayName", "id", "mail"];
+	// });
+	return _appClient.Devices.GetAsync();
+    }
+
+    public static Task<DeviceConfigurationCollectionResponse?> GetConfigsAsync()
+    {
+	_ = _appClient ??
+	    throw new NullReferenceException("Failed to initialize Graph");
+
+	return _appClient.DeviceManagement.DeviceConfigurations.GetAsync();
+    }
+
+
+    public static async Task MakeGraphCallAsync()
+    {
+	try
+	{
+	    // Get Users
+	    var devicePage = await GraphHelper.GetDeviceAsync();
+	    if (devicePage?.Value == null) { Console.WriteLine("No device found"); return; }
+	    foreach (var device in devicePage.Value)
+	    {
+		Console.WriteLine($"Device: {device.DisplayName ?? "NO NAME"}");
+		Console.WriteLine($"  ID: {device.Id}");
+	    }
+
+	    // Get Device Configurations
+	    var configs = await GraphHelper.GetConfigsAsync();
+	    if (configs?.Value == null) { Console.WriteLine("No config found"); return; }
+	    foreach (var config in configs.Value)
+	    {
+		Console.WriteLine($"Config: {config.DisplayName ?? "NO NAME"}");
+		Console.WriteLine($"  ID: {config.Id}");
+	    }
+	
+	}
+	catch (Exception ex)
+	{
+	    Console.WriteLine($"Error getting devices: {ex.Message}");
+	}
+	_ = _appClient ??
+	    throw new NullReferenceException("Failed to initialize Graph.");
+	await _appClient.DeviceManagement.DeviceConfigurations.GetAsync();
+    }
 }
