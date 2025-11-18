@@ -1,107 +1,81 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT license.
-
 using Azure.Core;
 using Azure.Identity;
 using Microsoft.Graph;
 using Microsoft.Graph.Models;
-using Microsoft.Graph.DeviceManagement.DeviceConfigurations;
 
-class GraphHelper
+public class GraphHelper
 {
-    // Settings object
     private static Settings? _settings;
+    private static ClientSecretCredential? _credential;
+    private static GraphServiceClient? _graphClient;
+    private static readonly string[] _graphScopes = new[] { "https://graph.microsoft.com/.default" };
 
-    // User auth token credential
-    private static ClientSecretCredential? _clientSecretCredential;
-
-    // Client configured with app-only authentication
-    private static GraphServiceClient? _appClient;
-
-    public static void InitializeGraphForAppOnlyAuth(Settings settings)
+    public static void InitializeGraph(Settings settings)
     {
-	_ = settings ??
-	    throw new ArgumentNullException("Settings cannot be null.");
-	_settings = settings;
+        _settings = settings ?? throw new ArgumentNullException(nameof(settings));
 
-	_clientSecretCredential ??= new ClientSecretCredential(
-	    _settings.TenantId, _settings.ClientId, _settings.ClientSecret);
-	
-        _appClient ??= new GraphServiceClient(
-	    _clientSecretCredential,
-	    ["https://graph.microsoft.com/.default"]);
+        _credential ??= new ClientSecretCredential(
+            _settings.TenantId,
+	    _settings.ClientId,
+	    _settings.ClientSecret
+	);
+
+        _graphClient ??= new GraphServiceClient(
+	    _credential,
+	    new[] { "https://graph.microsoft.com/.default" }
+	    );
     }
 
-    public static async Task<string> GetAppOnlyTokenAsync()
+    public static async Task<string> GetTokenAsync()
     {
-	_ = _clientSecretCredential ??
-	    throw new NullReferenceException("Graph not initialized for app-only token");
-	var context = new TokenRequestContext(["https://graph.microsoft.com/.default"]);
-	var response = await _clientSecretCredential.GetTokenAsync(context);
-	return response.Token;
+        _ = _credential ??
+            throw new NullReferenceException("Graph not initialized");
+        var context = new TokenRequestContext(["https://graph.microsoft.com/.default"]);
+        var response = await _credential.GetTokenAsync(context);
+        return response.Token;
     }
+
+    public static Task<UserCollectionResponse?> GetUserAsync() =>
+	_graphClient!.Users.GetAsync((config) =>
+        {
+            config.QueryParameters.Select = ["displayName", "id", "mail"];
+        });
+
+    public static Task<DeviceCollectionResponse?>
+	GetDeviceAsync() =>
+	_graphClient!.Devices.GetAsync();
+
+    public static Task<DeviceConfigurationCollectionResponse?>
+	GetDeviceConfigsAsync() =>
+	_graphClient!.DeviceManagement.DeviceConfigurations.GetAsync();
+
+    public static Task<DeviceConfigurationDeviceStatusCollectionResponse?>
+	GetDeviceConfigStatusesAsync(string configId) =>
+	_graphClient!.DeviceManagement.DeviceConfigurations[configId].DeviceStatuses.GetAsync();
+
+    public static Task<DeviceConfigurationAssignmentCollectionResponse?>
+	GetConfigAssignmentsAsync(string configId) =>
+	_graphClient!.DeviceManagement.DeviceConfigurations[configId].Assignments.GetAsync();
     
-    public static Task<UserCollectionResponse?> GetUserAsync()
+    private static async Task<HttpResponseMessage>
+	SendRawGraphRequestAsync(string url)
     {
-	_ = _appClient ??
-	    throw new NullReferenceException("Failed to initialize Graph");
+	_ = _credential ?? throw new NullReferenceException("Graph not initialized.");
+	var token = await _credential.GetTokenAsync(
+	    new Azure.Core.TokenRequestContext(_graphScopes));
 
-	return _appClient.Users.GetAsync((config) =>
-	{
-	    config.QueryParameters.Select = ["displayName", "id", "mail"];
-	});
+	using var http = new HttpClient();
+	var request = new HttpRequestMessage(HttpMethod.Get, url);
+	request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token.Token);
+	return await http.SendAsync(request);
     }
 
-    public static Task<DeviceCollectionResponse?> GetDeviceAsync()
+    public static async Task<string> GetSettingsCatalogPoliciesRawAsync()
     {
-	_ = _appClient ??
-	    throw new NullReferenceException("Failed to initialize Graph");
-
-	// return _appClient.Devices.GetAsync((config) =>
-	// {
-	//     config.QueryParameters.Select = ["displayName", "id", "mail"];
-	// });
-	return _appClient.Devices.GetAsync();
+	var url = "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies";
+	var response = await SendRawGraphRequestAsync(url);
+	response.EnsureSuccessStatusCode();
+	return await response.Content.ReadAsStringAsync();
     }
 
-    public static Task<DeviceConfigurationCollectionResponse?> GetConfigsAsync()
-    {
-	_ = _appClient ??
-	    throw new NullReferenceException("Failed to initialize Graph");
-
-	return _appClient.DeviceManagement.DeviceConfigurations.GetAsync();
-    }
-
-
-    public static async Task MakeGraphCallAsync()
-    {
-	try
-	{
-	    // Get Users
-	    var devicePage = await GraphHelper.GetDeviceAsync();
-	    if (devicePage?.Value == null) { Console.WriteLine("No device found"); return; }
-	    foreach (var device in devicePage.Value)
-	    {
-		Console.WriteLine($"Device: {device.DisplayName ?? "NO NAME"}");
-		Console.WriteLine($"  ID: {device.Id}");
-	    }
-
-	    // Get Device Configurations
-	    var configs = await GraphHelper.GetConfigsAsync();
-	    if (configs?.Value == null) { Console.WriteLine("No config found"); return; }
-	    foreach (var config in configs.Value)
-	    {
-		Console.WriteLine($"Config: {config.DisplayName ?? "NO NAME"}");
-		Console.WriteLine($"  ID: {config.Id}");
-	    }
-	
-	}
-	catch (Exception ex)
-	{
-	    Console.WriteLine($"Error getting devices: {ex.Message}");
-	}
-	_ = _appClient ??
-	    throw new NullReferenceException("Failed to initialize Graph.");
-	await _appClient.DeviceManagement.DeviceConfigurations.GetAsync();
-    }
 }

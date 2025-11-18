@@ -1,23 +1,20 @@
-﻿// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT license.
-
-// <ProgramSnippet>
-Console.WriteLine(".NET Graph App\n");
+﻿Console.WriteLine(".NET Graph App\n");
 
 var settings = Settings.LoadSettings();
 
-// Initialize Graph
-InitializeGraph(settings);
+GraphHelper.InitializeGraph(settings);
 
 int choice = -1;
 
 while (choice != 0)
 {
-    Console.WriteLine("Please choose one of the following options:");
+    Console.WriteLine("\nMenu:");
     Console.WriteLine("0. Exit");
-    Console.WriteLine("1. Display access token");
-    Console.WriteLine("2. List users");
-    Console.WriteLine("3. Make a Graph call");
+    Console.WriteLine("1. List Users");
+    Console.WriteLine("2. List Devices");
+    Console.WriteLine("3. List Device Configurations");
+    Console.WriteLine("4. List Device Configuration Statuses");
+    Console.WriteLine("5. List Settings Catalog Configurations for non-admin devices");
 
     try
     {
@@ -25,88 +22,61 @@ while (choice != 0)
     }
     catch (System.FormatException)
     {
-	// Set to invalid value
 	choice = -1;
     }
 
     switch (choice)
     {
 	case 0:
-	    // Exit the program
-	    Console.WriteLine("Goodbye...");
+	    Console.WriteLine("Exiting...");
 	    break;
+
 	case 1:
-	    // Display access token
-	    await DisplayAccessTokenAsync();
+	    Console.WriteLine("\nListing users...");
+	    var users = await GraphHelper.GetUserAsync();
+	    if (users?.Value == null) { Console.WriteLine("No users found."); break; }
+	    foreach (var d in users.Value)
+		Console.WriteLine($"  {d.DisplayName} ({d.Id})");
 	    break;
+
 	case 2:
-	    // List users
-	    await ListUsersAsync();
+	    Console.WriteLine("\nListing devices...");
+	    var devices = await GraphHelper.GetDeviceAsync();
+	    if (devices?.Value == null) { Console.WriteLine("No devices found."); break; }
+	    foreach (var d in devices.Value)
+		Console.WriteLine($"  {d.DisplayName} ({d.Id})");
 	    break;
+
 	case 3:
-	    // Run any Graph code
-	    await MakeGraphCallAsync();
+	    Console.WriteLine("\nListing device configurations...");
+	    var configs = await GraphHelper.GetDeviceConfigsAsync();
+	    if (configs?.Value == null) { Console.WriteLine("No device configurations found."); break; }
+	    foreach (var c in configs.Value)
+		Console.WriteLine($"  {c.DisplayName} ({c.Id})");
 	    break;
+
+	case 4:
+	    Console.WriteLine("\nListing device configuration statuses...");
+	    var allConfigs = await GraphHelper.GetDeviceConfigsAsync();
+	    if (allConfigs?.Value == null) { Console.WriteLine("No configurations found."); break; }
+	    foreach (var c in allConfigs.Value)
+	    {
+		Console.WriteLine($"\n  Configuration: {c.DisplayName}");
+		var statuses = await GraphHelper.GetDeviceConfigStatusesAsync(c.Id!);
+		if (statuses?.Value == null) { Console.WriteLine(" No status data."); continue; }
+		foreach (var s in statuses.Value)
+		    Console.WriteLine($"    Device {s.DeviceDisplayName}: {s.Status}");
+	    }
+	    break;
+
+	case 5:
+	    Console.WriteLine("Settings Catalog configurations assigned to non-admin devices:");
+	    var json = await GraphHelper.GetSettingsCatalogPoliciesRawAsync();
+	    Console.WriteLine(json);
+	    break;
+
 	default:
 	    Console.WriteLine("Invalid choice! Please try again.");
 	    break;
     }
 }
-// </ProgramSnippet>
-
-// <InitializeGraphSnippet>
-void InitializeGraph(Settings settings)
-{
-    GraphHelper.InitializeGraphForAppOnlyAuth(settings);
-}
-// </InitializeGraphSnippet>
-
-// <DisplayAccessTokenSnippet>
-async Task DisplayAccessTokenAsync()
-{
-    try
-    {
-	var appOnlyToken = await GraphHelper.GetAppOnlyTokenAsync();
-	Console.WriteLine($"App-only token: {appOnlyToken}");
-    }
-    catch (Exception ex)
-    {
-	Console.WriteLine($"Error getting app-only access token: {ex.Message}");
-    }
-}
-// </DisplayAccessTokenSnippet>
-
-
-// </ListUsersSnippet>
-async Task ListUsersAsync()
-{
-    try
-    {
-	var userPage = await GraphHelper.GetUserAsync();
-
-	if (userPage?.Value == null)
-	{
-	    Console.WriteLine("No results returned.");
-	    return;
-	}
-
-	foreach (var user in userPage.Value)
-	{
-	    Console.WriteLine($"User: {user.DisplayName ?? "NO NAME"}");
-	    Console.WriteLine($"  ID: {user.Id}");
-	    Console.WriteLine($"  Email: {user.Mail ?? "NO EMAIL"}");
-	}
-    }
-	catch (Exception ex)
-	{
-	    Console.WriteLine($"Error getting users: {ex.Message}");
-	}
-}
-// </ListUsersSnippet>
-
-// <MakeGraphCallSnippet>
-async Task MakeGraphCallAsync()
-{
-    await GraphHelper.MakeGraphCallAsync();
-}
-// </MakeGraphCallSnippet>
